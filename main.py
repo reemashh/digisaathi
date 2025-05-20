@@ -9,7 +9,7 @@ import numpy as np
 app = FastAPI()
 
 # Initialize OpenAI client (v1+)
-client = OpenAI(api_key="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")
+client = OpenAI(api_key="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")
 
 # Sample documents — replace with actual chunks
 documents = [
