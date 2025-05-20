@@ -1,21 +1,15 @@
-import os
-import requests
 import streamlit as st
+import requests
 
-# Load backend URL from environment variable or default to localhost
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+BACKEND_URL = "https://digisaathi.onrender.com"  # Update if needed
 
 st.title("DigiSaathi - LLM Assistant")
 
-# Input box for user query
-user_query = st.text_input("Ask DigiSaathi:")
+query = st.text_input("Ask your question:")
 
-if st.button("Submit") and user_query:
+if query:
     try:
-        res = requests.post(f"{BACKEND_URL}/query", json={"query": user_query})
-        response = res.json().get("response", "No response from backend.")
-        st.write("### Response:")
-        st.write(response)
+        res = requests.post(f"{BACKEND_URL}/query", json={"query": query})
+        st.write("**Answer:**", res.json()["response"])
     except Exception as e:
         st.error(f"Error contacting backend: {e}")
-
