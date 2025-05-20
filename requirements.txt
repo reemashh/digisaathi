@@ -1,4 +1,7 @@
 fastapi
 uvicorn
+openai
+faiss-cpu
+pydantic
 streamlit
 requests
