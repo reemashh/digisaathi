@@ -1,64 +1,72 @@
 import os
 from fastapi import FastAPI
 from pydantic import BaseModel
-import openai
+from openai import OpenAI
 import faiss
-import pickle
 import numpy as np
 
+# Initialize FastAPI
 app = FastAPI()
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Initialize OpenAI client (v1+)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Sample documents
+# Sample documents — replace with actual chunks
 documents = [
     "DigiSaathi is a digital assistant project using LLMs.",
     "It supports knowledge retrieval from local documents.",
     "Users can query and get instructions or videos in response.",
-    "The project demonstrates RAG, embedding, and vector search."
+    "The project demonstrates RAG, embedding, and vector search.",
 ]
 
-# Create embeddings
-EMBED_MODEL = "text-embedding-ada-002"
+# Embed function using OpenAI v1+ style
+def get_embedding(text: str) -> list:
+    response = client.embeddings.create(
+        input=text,
+        model="text-embedding-ada-002"
+    )
+    return response.data[0].embedding
 
+# Generate embeddings for documents
+doc_embeddings = [get_embedding(doc) for doc in documents]
+dimension = len(doc_embeddings[0])
 
-def get_embedding(text):
-    result = openai.Embedding.create(input=text, model=EMBED_MODEL)
-    return np.array(result['data'][0]['embedding'], dtype='float32')
+# FAISS index setup
+index = faiss.IndexFlatL2(dimension)
+index.add(np.array(doc_embeddings).astype("float32"))
 
+# Store doc text for reference
+doc_lookup = {i: doc for i, doc in enumerate(documents)}
 
-# Build FAISS index
-embeddings = [get_embedding(doc) for doc in documents]
-index = faiss.IndexFlatL2(len(embeddings[0]))
-index.add(np.array(embeddings))
-
-
+# Pydantic model for incoming request
 class Query(BaseModel):
     query: str
 
-
 @app.post("/query")
 async def handle_query(data: Query):
-    query_emb = get_embedding(data.query)
-    D, I = index.search(np.array([query_emb]), k=3)
-    context = "\n".join([documents[i] for i in I[0]])
+    user_query = data.query
+    query_embedding = np.array(get_embedding(user_query)).astype("float32").reshape(1, -1)
 
-    prompt = f"""You are DigiSaathi, a helpful assistant. Use the context below to answer the question.
-Context:
-{context}
+    # Search FAISS index
+    D, I = index.search(query_embedding, k=3)
+    retrieved = [doc_lookup[i] for i in I[0]]
 
-Question: {data.query}
-Answer:
-"""
-    response = openai.ChatCompletion.create(
+    # Build prompt with retrieved context
+    prompt = "You are DigiSaathi assistant.\n"
+    prompt += "Context:\n" + "\n".join(retrieved) + "\n"
+    prompt += f"User question: {user_query}\nAnswer:"
+
+    # Call LLM
+    completion = client.chat.completions.create(
         model="gpt-4o",
         messages=[{"role": "user", "content": prompt}],
+        max_tokens=150,
         temperature=0.5,
-        max_tokens=200
     )
-    return {"response": response['choices'][0]['message']['content']}
+    answer = completion.choices[0].message.content
+    return {"response": answer}
 
-
+# Run locally if needed
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
