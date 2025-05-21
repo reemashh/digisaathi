@@ -1,7 +1,5 @@
 fastapi
-uvicorn
-openai
+uvicorn[standard]
+requests
 faiss-cpu
 pydantic
-streamlit
-requests
