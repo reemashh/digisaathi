@@ -1,23 +1,26 @@
 FROM python:3.9-slim
 
-# Install system deps for faiss (Debian based)
-RUN apt-get update && apt-get install -y build-essential cmake
-
-# Set working directory
 WORKDIR /app
 
-# Copy requirements
-COPY requirements.txt .
+# Install system dependencies required for FAISS
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install python deps
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app code
-COPY . .
+# Copy application code
+COPY main.py app.py server.py ./
 
-# Expose port
-EXPOSE 8000
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV API_PORT=8000
 
-# Run the app with uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Expose port for the combined service
+EXPOSE $PORT
 
+# Command to run both services
+CMD ["python", "server.py"]
