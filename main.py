@@ -11,8 +11,8 @@ load_dotenv()
 
 app = FastAPI()
 
-# ✅ CORRECT MODEL URL (tested and embedding-compatible)
-API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/distiluse-base-multilingual-cased-v2"
+# ✅ Correct model URL for semantic search
+API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
 HEADERS = {"Authorization": f"Bearer {os.getenv('HF_API_TOKEN')}"}
 
 texts = [
@@ -23,7 +23,7 @@ texts = [
 ]
 
 def get_embedding(text: str):
-    response = requests.post(API_URL, headers=HEADERS, json={"inputs": text})
+    response = requests.post(API_URL, headers=HEADERS, json={"inputs": [text]})  # Pass input as a list
     if response.status_code != 200:
         raise Exception(f"Embedding failed: {response.status_code} - {response.text}")
     return np.array(response.json()[0], dtype=np.float32)
@@ -46,4 +46,3 @@ def query_endpoint(request: QueryRequest):
         return {"results": results}
     except Exception as e:
         return {"error": str(e)}
-
