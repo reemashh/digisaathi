@@ -1,38 +1,32 @@
+import os
+import threading
+import uvicorn
 import streamlit as st
 import requests
-import os
+import time
 
-# Get backend URL from environment variable (default to localhost)
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+from main import app as fastapi_app
 
-st.set_page_config(page_title="DigiSaathi Assistant", page_icon="🤖")
+# Start FastAPI in background
+def run_fastapi():
+    uvicorn.run(fastapi_app, host="0.0.0.0", port=8000, log_level="error")
 
-st.title("DigiSaathi Assistant")
-st.markdown(
-    "Ask me anything about the project, its features, or how to use it!"
-)
+threading.Thread(target=run_fastapi, daemon=True).start()
 
-query = st.text_input("Your question:", placeholder="e.g. How does DigiSaathi retrieve information?")
+# Wait a moment to let FastAPI boot
+time.sleep(1)
 
-if query:
-    with st.spinner("Thinking..."):
-        try:
-            response = requests.post(
-                f"{BACKEND_URL}/query",
-                json={"query": query},
-                timeout=10
-            )
-            response.raise_for_status()
-            result = response.json()
+# Read port from environment (Render uses $PORT)
+streamlit_port = int(os.environ.get("PORT", 8501))
 
-            if "response" in result:
-                st.success(result["response"])
-            else:
-                st.warning("No answer returned. Please try again.")
+# Streamlit interface
+st.title("Streamlit + FastAPI (Render)")
 
-        except requests.exceptions.RequestException as e:
-            st.error(f"Request failed: {str(e)}")
-
-st.markdown("---")
-st.caption("Powered by Hugging Face + FAISS + Streamlit")
+query = st.text_input("Enter your query:")
+if st.button("Send to FastAPI"):
+    try:
+        res = requests.post("http://localhost:8000/query", json={"query": query})
+        st.write("Response:", res.json())
+    except Exception as e:
+        st.error(f"Error: {e}")
 
