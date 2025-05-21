@@ -12,7 +12,7 @@ load_dotenv()
 app = FastAPI()
 
 # ✅ CORRECT MODEL URL (tested and embedding-compatible)
-API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/paraphrase-MiniLM-L3-v2"
+API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/distiluse-base-multilingual-cased-v2"
 HEADERS = {"Authorization": f"Bearer {os.getenv('HF_API_TOKEN')}"}
 
 texts = [
