@@ -12,7 +12,7 @@ load_dotenv()
 app = FastAPI()
 
 # Hugging Face API setup
-API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/all-mpnet-base-v2"
+API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/msmarco-MiniLM-L6-cos-v5"
 HEADERS = {"Authorization": f"Bearer {os.getenv('HF_API_TOKEN')}"}
 
 # Sample documents to search
