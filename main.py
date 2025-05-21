@@ -42,7 +42,8 @@ documents = [
 
 def get_embedding_hf(text: str, max_retries=3) -> np.ndarray:
     """Get embeddings from Hugging Face API with retry logic"""
-    url = f"https://api-inference.huggingface.co/pipeline/feature-extraction/{EMBEDDING_MODEL}"
+    # Fixed URL format for Hugging Face API
+    url = f"https://api-inference.huggingface.co/models/{EMBEDDING_MODEL}"
     
     payload = {"inputs": text, "options": {"wait_for_model": True}}
     
@@ -51,8 +52,12 @@ def get_embedding_hf(text: str, max_retries=3) -> np.ndarray:
             response = requests.post(url, headers=headers, json=payload)
             
             if response.status_code == 200:
-                # Return the embedding
-                return np.array(response.json()[0]).astype('float32')
+                # Return the embedding and handle different response formats
+                embedding = np.array(response.json()).astype('float32')
+                # If we get a list of lists for a single input, take the first one
+                if len(embedding.shape) > 1 and embedding.shape[0] == 1:
+                    embedding = embedding[0]
+                return embedding
             
             # If model is loading, wait and retry
             if response.status_code == 503 and "loading" in response.text.lower():
@@ -84,15 +89,29 @@ def build_index():
     # Try to get embeddings with better error handling
     try:
         embeddings = []
-        for doc in documents:
-            try:
-                embedding = get_embedding_hf(doc)
-                embeddings.append(embedding)
-                print(f"Got embedding for document: {doc[:30]}...")
-            except Exception as e:
-                print(f"Failed to get embedding for document: {doc[:30]}... Error: {str(e)}")
-                # Use a zero vector as fallback (not ideal but prevents crashing)
-                embeddings.append(np.zeros(EMBEDDING_DIM, dtype='float32'))
+        
+        # Check if we have a valid API token
+        if not HF_API_TOKEN:
+            print("WARNING: HF_API_TOKEN not set. Using dummy embeddings for demonstration.")
+            # Use random embeddings as fallback for demo purposes
+            for doc in documents:
+                dummy_embedding = np.random.rand(EMBEDDING_DIM).astype('float32')
+                dummy_embedding = dummy_embedding / np.linalg.norm(dummy_embedding)
+                embeddings.append(dummy_embedding)
+                print(f"Created dummy embedding for: {doc[:30]}...")
+        else:
+            # Try to get real embeddings
+            for doc in documents:
+                try:
+                    embedding = get_embedding_hf(doc)
+                    embeddings.append(embedding)
+                    print(f"Got embedding for document: {doc[:30]}...")
+                except Exception as e:
+                    print(f"Failed to get embedding for document: {doc[:30]}... Error: {str(e)}")
+                    # Use a normalized random vector as fallback (better than zeros)
+                    fallback = np.random.rand(EMBEDDING_DIM).astype('float32')
+                    fallback = fallback / np.linalg.norm(fallback)
+                    embeddings.append(fallback)
         
         if embeddings:
             embeddings_array = np.array(embeddings)
@@ -116,7 +135,18 @@ class Query(BaseModel):
 async def query_endpoint(q: Query):
     try:
         # Get query embedding
-        q_emb = get_embedding_hf(q.query).reshape(1, -1)
+        query_embedding = get_embedding_hf(q.query)
+        
+        # Handle different response shapes from the API
+        if len(query_embedding.shape) > 1:
+            # If we get a 2D array (like [batch_size, embedding_dim])
+            q_emb = query_embedding.reshape(-1)
+        else:
+            # If we already have a 1D array
+            q_emb = query_embedding
+            
+        # Ensure proper shape for FAISS search
+        q_emb = q_emb.reshape(1, -1)
         
         # Search for similar documents
         k = min(2, len(documents))  # Don't try to retrieve more docs than we have
