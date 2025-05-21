@@ -11,10 +11,11 @@ load_dotenv()
 
 app = FastAPI()
 
-# ✅ Correct model URL for semantic search
-API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
+# Hugging Face API setup
+API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/all-mpnet-base-v2"
 HEADERS = {"Authorization": f"Bearer {os.getenv('HF_API_TOKEN')}"}
 
+# Sample documents to search
 texts = [
     "DigiSaathi is a digital assistant for banking queries.",
     "It supports knowledge retrieval and guided workflows.",
@@ -22,8 +23,9 @@ texts = [
     "The project demonstrates RAG, FastAPI, and Streamlit integration."
 ]
 
+# Function to get embeddings from Hugging Face Inference API
 def get_embedding(text: str):
-    response = requests.post(API_URL, headers=HEADERS, json={"inputs": [text]})  # Pass input as a list
+    response = requests.post(API_URL, headers=HEADERS, json={"inputs": text})
     if response.status_code != 200:
         raise Exception(f"Embedding failed: {response.status_code} - {response.text}")
     return np.array(response.json()[0], dtype=np.float32)
@@ -34,6 +36,7 @@ dimension = len(embeddings[0])
 index = faiss.IndexFlatL2(dimension)
 index.add(np.array(embeddings))
 
+# FastAPI schema
 class QueryRequest(BaseModel):
     query: str
 
@@ -46,3 +49,4 @@ def query_endpoint(request: QueryRequest):
         return {"results": results}
     except Exception as e:
         return {"error": str(e)}
+
