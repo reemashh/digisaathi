@@ -11,11 +11,10 @@ load_dotenv()
 
 app = FastAPI()
 
-# Correct Hugging Face endpoint
-API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/paraphrase-MiniLM-L6-v2"
+# ✅ CORRECT MODEL URL (tested and embedding-compatible)
+API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/paraphrase-MiniLM-L3-v2"
 HEADERS = {"Authorization": f"Bearer {os.getenv('HF_API_TOKEN')}"}
 
-# Documents to embed and search
 texts = [
     "DigiSaathi is a digital assistant for banking queries.",
     "It supports knowledge retrieval and guided workflows.",
@@ -23,7 +22,6 @@ texts = [
     "The project demonstrates RAG, FastAPI, and Streamlit integration."
 ]
 
-# Embed function
 def get_embedding(text: str):
     response = requests.post(API_URL, headers=HEADERS, json={"inputs": text})
     if response.status_code != 200:
