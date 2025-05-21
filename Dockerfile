@@ -1,24 +1,36 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim
+# Use official Python image
+FROM python:3.10-slim
 
-# Set the working directory in the container
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Create working directory
 WORKDIR /app
 
-# Copy the current directory contents into the container
-COPY . /app/
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Make port available to the world outside this container
-EXPOSE 8000
-EXPOSE 8501
+# Copy all app files into the container
+COPY . .
 
-# Define environment variables with defaults
-ENV API_PORT=8000
-ENV PORT=8501
-# HF_API_TOKEN should be set through Render's environment variables
-# ENV HF_API_TOKEN=""
+# Create .streamlit/config.toml inside container
+RUN mkdir -p ~/.streamlit && \
+    echo "[server]\n\
+headless = true\n\
+port = 10000\n\
+enableCORS = false\n\
+\n" > ~/.streamlit/config.toml
 
-# Run server.py when the container launches
-CMD ["python", "server.py"]
+# Expose the port Render expects
+EXPOSE 10000
+
+# Run the Streamlit app
+CMD ["streamlit", "run", "app.py", "--server.port=10000", "--server.address=0.0.0.0"]
+
