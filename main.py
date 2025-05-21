@@ -11,11 +11,11 @@ load_dotenv()
 
 app = FastAPI()
 
-# Hugging Face API setup
-API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+# Correct Hugging Face endpoint
+API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
 HEADERS = {"Authorization": f"Bearer {os.getenv('HF_API_TOKEN')}"}
 
-# Example text chunks (you can load these from a file/db)
+# Documents to embed and search
 texts = [
     "DigiSaathi is a digital assistant for banking queries.",
     "It supports knowledge retrieval and guided workflows.",
@@ -23,14 +23,14 @@ texts = [
     "The project demonstrates RAG, FastAPI, and Streamlit integration."
 ]
 
-# Function to get embedding from Hugging Face
+# Embed function
 def get_embedding(text: str):
     response = requests.post(API_URL, headers=HEADERS, json={"inputs": text})
     if response.status_code != 200:
         raise Exception(f"Embedding failed: {response.status_code} - {response.text}")
     return np.array(response.json()[0], dtype=np.float32)
 
-# Build FAISS index on startup
+# Build FAISS index
 embeddings = [get_embedding(text) for text in texts]
 dimension = len(embeddings[0])
 index = faiss.IndexFlatL2(dimension)
